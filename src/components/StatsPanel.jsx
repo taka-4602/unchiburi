@@ -27,6 +27,7 @@ export default function StatsPanel() {
     ['ハエ撃退数', `${fmt(s.fliesPopped)} 匹`],
     ['レアうんち捕獲数', `${fmt(s.goldenCaught)} 回`],
     ['ガチャ排出数', `${fmt(s.gachaPulls)} 回`],
+    ['キャラ収集数', `${fmt(s.gachaChars.length)} 種`],
     ['UR排出数', `${fmt(s.urCount)} 個`],
     ['実績解除数', `${s.achievements.length} 個`],
   ];

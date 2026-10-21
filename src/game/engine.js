@@ -11,7 +11,8 @@ import {
   ACHIEVEMENT_DATA,
   GACHA,
   GACHA_RATES,
-  GACHA_LOSE_COMMENTS,
+  GACHA_CHARS,
+  CHAR_BONUS,
 } from './data';
 import { sound } from './audio';
 
@@ -44,6 +45,7 @@ export const state = {
   laxUsed: 0,
   gachaPulls: 0,
   urCount: 0,
+  gachaChars: [], // 排出済みガチャキャラid一覧
   // バフ/デバフ（終了時刻）
   clickFrenzyEndsAt: 0,
   prodDebuffEndsAt: 0,
@@ -108,6 +110,7 @@ function buildSlow() {
     goldenCaught: state.goldenCaught,
     gachaPulls: state.gachaPulls,
     urCount: state.urCount,
+    gachaChars: [...state.gachaChars],
     achievements: [...state.achievements],
     laxUnlocked: state.laxUnlocked,
     laxActive: state.laxActive,
@@ -155,6 +158,11 @@ export function getWaterMult() {
   return 1 + state.achievements.length * WATER_PER_ACH;
 }
 
+// 図鑑ボーナス：ガチャキャラ収集数に比例するグローバル倍率
+export function getCharMult() {
+  return 1 + state.gachaChars.length * CHAR_BONUS;
+}
+
 export function getDrainRate() {
   return Math.min(FLY.cap, state.flies.length * FLY.drainPer);
 }
@@ -167,7 +175,7 @@ export function getClickPower() {
   upgradeBonus += (state.upgrades['water'] || 0) * 0.5;
   upgradeBonus += (state.upgrades['fiber'] || 0) * 1.5;
 
-  let mult = getSkin().mult * getSoulMult() * getWaterMult();
+  let mult = getSkin().mult * getSoulMult() * getWaterMult() * getCharMult();
   if (state.isFever) mult *= 4;
   if (state.laxActive) mult *= LAX.prodMult;
   if (isActive(state.clickFrenzyEndsAt)) mult *= GOLDEN.clickFrenzyMult;
@@ -181,7 +189,7 @@ export function getBps() {
   UPGRADE_DATA.forEach((u) => {
     total += (state.upgrades[u.id] || 0) * u.bps;
   });
-  let mult = getSoulMult() * getWaterMult();
+  let mult = getSoulMult() * getWaterMult() * getCharMult();
   if (state.isFever) mult *= 2;
   if (state.laxActive) mult *= LAX.prodMult;
   if (isActive(state.prodDebuffEndsAt)) mult *= 0.5;
@@ -218,6 +226,7 @@ export function getCounters() {
     laxUsed: state.laxUsed,
     gachaPulls: state.gachaPulls,
     urCount: state.urCount,
+    charsOwned: state.gachaChars.length,
   };
 }
 
@@ -250,6 +259,7 @@ export function saveGame() {
         laxUsed: state.laxUsed,
         gachaPulls: state.gachaPulls,
         urCount: state.urCount,
+        gachaChars: state.gachaChars,
       })
     );
   } catch (e) {
@@ -282,6 +292,7 @@ export function loadGame() {
     state.laxUsed = p.laxUsed || 0;
     state.gachaPulls = p.gachaPulls || 0;
     state.urCount = p.urCount || 0;
+    state.gachaChars = Array.isArray(p.gachaChars) ? p.gachaChars : [];
     state.flies.forEach((f) => {
       f.id = f.id ?? ++flySeq;
       f.sucked = f.sucked || 0;
@@ -580,9 +591,21 @@ export function endFever(silent = false) {
 }
 
 /* ==========================================================================
-   うんちガチャ（ハズレは物理的にクソ）
+   うんちガチャ（排出物は全てコレクション。ハズレは物理的にクソキャラ）
    ========================================================================== */
-const GACHA_RANK = { lose: 0, r: 1, sr: 2, ssr: 3, ur: 4 };
+const GACHA_RANK = { n: 0, r: 1, sr: 2, ssr: 3, ur: 4 };
+const GACHA_DUP_SOULS = { sr: 1, ssr: 5, ur: 20 };
+
+// レアリティ別の排出プール
+const GACHA_POOLS = {};
+GACHA_RATES.forEach((r) => {
+  GACHA_POOLS[r.id] = GACHA_CHARS.filter((c) => c.rarity === r.id);
+});
+
+// 1回あたりのコスト：所持BPの0.5%（最低1,000BP）
+export function getGachaCost() {
+  return Math.max(GACHA.costMin, Math.floor(state.score * GACHA.costPct));
+}
 
 function rollGacha() {
   const roll = Math.random() * 10000;
@@ -591,7 +614,7 @@ function rollGacha() {
     acc += r.w;
     if (roll < acc) return r.id;
   }
-  return 'lose';
+  return 'n';
 }
 
 function unlockSkin(id) {
@@ -601,82 +624,58 @@ function unlockSkin(id) {
 }
 
 export function pullGacha(n = 1) {
-  const cost = GACHA.cost * n;
+  const costPer = getGachaCost();
+  const cost = costPer * n;
   if (state.score < cost) return null;
   state.score -= cost;
   state.gachaPulls += n;
 
-  const counts = { lose: 0, r: 0, sr: 0, ssr: 0, ur: 0 };
+  const counts = { n: 0, r: 0, sr: 0, ssr: 0, ur: 0 };
   const notes = [];
   let bpBack = 0;
-  let best = 'lose';
+  let best = 'n';
   const pushNote = (t) => {
     if (notes.length < 12) notes.push(t);
   };
 
   for (let i = 0; i < n; i++) {
-    const r = rollGacha();
-    counts[r]++;
-    if (GACHA_RANK[r] > GACHA_RANK[best]) best = r;
+    const rarity = rollGacha();
+    counts[rarity]++;
+    if (GACHA_RANK[rarity] > GACHA_RANK[best]) best = rarity;
 
-    switch (r) {
-      case 'lose': {
-        // ハズレは文字通りクソ。コストの10%だけリサイクル回収
-        const back = Math.floor(GACHA.cost * 0.1);
+    const pool = GACHA_POOLS[rarity];
+    const item = pool[Math.floor(Math.random() * pool.length)];
+    if (!item) continue;
+
+    if (item.type === 'skin') {
+      if (unlockSkin(item.skin)) {
+        pushNote(`${item.emoji} 限定スキン「${item.name}」解放！！`);
+      } else {
+        // スキンダブり → GS変換
+        const gs = rarity === 'ur' ? 50 : 10;
+        state.souls += gs;
+        state.totalSouls += gs;
+        pushNote(`${item.emoji} 「${item.name}」ダブり変換 +${gs} GS`);
+      }
+    } else if (!state.gachaChars.includes(item.id)) {
+      state.gachaChars.push(item.id);
+      pushNote(`${item.emoji} NEW「${item.name}」ゲット！図鑑ボーナス+${Math.round(CHAR_BONUS * 1000) / 10}%`);
+    } else {
+      // キャラダブり → 少量BP返却 / 上位レアはGS変換
+      if (GACHA_DUP_SOULS[rarity]) {
+        const gs = GACHA_DUP_SOULS[rarity];
+        state.souls += gs;
+        state.totalSouls += gs;
+        pushNote(`${item.emoji} 「${item.name}」ダブり変換 +${gs} GS`);
+      } else {
+        const back = Math.floor(costPer * 0.05);
         bpBack += back;
         addScore(back);
-        break;
-      }
-      case 'r': {
-        const win = GACHA.cost * (5 + Math.floor(Math.random() * 11));
-        bpBack += win;
-        addScore(win);
-        break;
-      }
-      case 'sr': {
-        const pick = Math.random();
-        if (pick < 0.4) {
-          state.souls += 1;
-          state.totalSouls += 1;
-          pushNote('🥈 +1 ゴールデンソウル');
-        } else if (pick < 0.7) {
-          if (!state.isFever) startFever();
-          pushNote('🥈 強制フィーバー発生！');
-        } else {
-          const win = Math.max(300, Math.floor(getBps() * 180));
-          bpBack += win;
-          addScore(win);
-          pushNote(`🥈 BPS180秒分 +${win.toLocaleString()} BP`);
-        }
-        break;
-      }
-      case 'ssr': {
-        if (unlockSkin('crystal')) {
-          pushNote('🥇 限定スキン「クリスタルうんち」解放！！');
-        } else {
-          state.souls += 10;
-          state.totalSouls += 10;
-          pushNote('🥇 ダブり変換 +10 ゴールデンソウル');
-        }
-        break;
-      }
-      case 'ur': {
-        state.urCount++;
-        if (unlockSkin('legend')) {
-          pushNote('👑 伝説の秘宝「伝説の大便玉」解放！！！');
-        } else {
-          state.souls += 100;
-          state.totalSouls += 100;
-          pushNote('👑 ダブり変換 +100 ゴールデンソウル');
-        }
-        break;
       }
     }
   }
 
-  if (counts.lose > 0 && n <= 10) {
-    pushNote(`💩 ${GACHA_LOSE_COMMENTS[Math.floor(Math.random() * GACHA_LOSE_COMMENTS.length)]}`);
-  }
+  if (counts.ur > 0) state.urCount += counts.ur;
 
   if (counts.ur > 0) sound.playPrestige();
   else if (counts.ssr > 0 || counts.sr > 0) sound.playFeverStart();

@@ -1,4 +1,4 @@
-import { UPGRADE_DATA, SKIN_DATA, ACHIEVEMENT_DATA, FLY } from './data';
+import { UPGRADE_DATA, SKIN_DATA, ACHIEVEMENT_DATA, GACHA_CHARS, FLY } from './data';
 import { state } from './engine';
 
 const MAGIC = 'UBS1';
@@ -77,6 +77,7 @@ function collectSave() {
   d.upgrades = { ...state.upgrades };
   d.unlockedSkins = [...state.unlockedSkins];
   d.achievements = [...state.achievements];
+  d.gachaChars = [...state.gachaChars];
   d.flies = state.flies.map((f) => ({ id: f.id, sucked: f.sucked }));
   d.currentSkin = state.currentSkin;
   return d;
@@ -106,6 +107,11 @@ function sanitize(d) {
   const knownAch = ACHIEVEMENT_DATA.map((a) => a.id);
   out.achievements = Array.isArray(d.achievements)
     ? [...new Set(d.achievements.filter((id) => knownAch.includes(id)))]
+    : [];
+
+  const knownChars = GACHA_CHARS.filter((c) => c.type === 'char').map((c) => c.id);
+  out.gachaChars = Array.isArray(d.gachaChars)
+    ? [...new Set(d.gachaChars.filter((id) => knownChars.includes(id)))]
     : [];
 
   out.flies = Array.isArray(d.flies)

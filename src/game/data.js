@@ -95,41 +95,61 @@ export const LAX = {
 };
 
 /* ==========================================================================
-   うんちガチャ：ハズレは物理的にクソ。大量に引けるから確率はクソ低い
+   うんちガチャ：全排出物はコレクション。ハズレは物理的にクソ（キャラ）
    ========================================================================== */
 export const GACHA = {
-  cost: 100, // 1回あたりBP
+  costPct: 0.005, // 1回 = 所持BPの0.5%
+  costMin: 1000, // 最低コスト
 };
 
-// レート表（重み/10000）。URは1/10,000
+// レート表（重み/10000）
 export const GACHA_RATES = [
-  { id: 'lose', w: 9200, name: 'クソ', emoji: '💩', label: 'ハズレ' },
-  { id: 'r', w: 700, name: 'R', emoji: '🥉', label: '中当たり' },
-  { id: 'sr', w: 90, name: 'SR', emoji: '🥈', label: '大当たり' },
-  { id: 'ssr', w: 9, name: 'SSR', emoji: '🥇', label: '激レア' },
-  { id: 'ur', w: 1, name: 'UR', emoji: '👑', label: '超激レア' },
+  { id: 'n', w: 8500, name: 'N', emoji: '💩', label: 'クソ級' },
+  { id: 'r', w: 1200, name: 'R', emoji: '🥉', label: 'レア' },
+  { id: 'sr', w: 250, name: 'SR', emoji: '🥈', label: 'Sレア' },
+  { id: 'ssr', w: 45, name: 'SSR', emoji: '🥇', label: '激レア' },
+  { id: 'ur', w: 5, name: 'UR', emoji: '👑', label: '超激レア' },
 ];
 
-// ハズレ時のコメント（全部クソ）
-export const GACHA_LOSE_COMMENTS = [
-  'ただのうんち',
-  '水分多めのうんち',
-  'コーン入り',
-  '昨日のカレー',
-  '形だけは良い',
-  '普通',
-  'まあまあのうんち',
-  'これはクソ',
-  '特に何もない',
-  'ありふれたうんち',
-  '少し臭い',
-  '半分うんち',
-  'うんち（小）',
-  '小粒だけどうんち',
-  '乾燥気味',
-  'もう少しだった',
-  '惜しい（惜しくない）',
-  'また明日',
+// 新キャラ1種につき全生産+0.5%
+export const CHAR_BONUS = 0.005;
+
+// ガチャコレクションキャラクター（絵文字図鑑）
+// type: 'char' = 図鑑キャラ / 'skin' = 限定スキン解放
+export const GACHA_CHARS = [
+  // --- N（クソ級） ---
+  { id: 'n_normal', rarity: 'n', type: 'char', name: 'ふつうのうんち', emoji: '💩', desc: 'どこにでもいる平凡なうんち。' },
+  { id: 'n_small', rarity: 'n', type: 'char', name: 'ちいさいうんち', emoji: '💩', desc: '小粒。でもうんちはうんち。' },
+  { id: 'n_corn', rarity: 'n', type: 'char', name: 'コーンうんち', emoji: '🌽', desc: '消化しきれなかった昨日のとうもろこし付き。' },
+  { id: 'n_wet', rarity: 'n', type: 'char', name: '水っぽいうんち', emoji: '💧', desc: '水分過多。もうちょっと頑張って。' },
+  { id: 'n_koro', rarity: 'n', type: 'char', name: 'コロコロうんち', emoji: '⚫', desc: 'ウサギ風。便秘気味のサイン。' },
+  { id: 'n_neba', rarity: 'n', type: 'char', name: 'ねばねばうんち', emoji: '🫠', desc: '脂っこいものの食べすぎかも。' },
+  { id: 'n_curry', rarity: 'n', type: 'char', name: 'カレーうんち', emoji: '🍛', desc: '昨日の夕飯がそのままの姿で。' },
+  { id: 'n_morning', rarity: 'n', type: 'char', name: '朝イチうんち', emoji: '🌅', desc: '規則正しい生活の産物。' },
+  { id: 'n_sleepy', rarity: 'n', type: 'char', name: '寝ぼけうんち', emoji: '😴', desc: '出たことすら覚えていない。' },
+  { id: 'n_half', rarity: 'n', type: 'char', name: '半分うんち', emoji: '🚽', desc: '残り半分は体内に残したまま。' },
+  // --- R ---
+  { id: 'r_gloss', rarity: 'r', type: 'char', name: 'ツヤツヤうんち', emoji: '✨', desc: '表面のツヤが違う。質の良い食事の証。' },
+  { id: 'r_long', rarity: 'r', type: 'char', name: 'ロングうんち', emoji: '📏', desc: '切れ目なくスルッと出た一本。' },
+  { id: 'r_spiral', rarity: 'r', type: 'char', name: 'うずまきうんち', emoji: '🌀', desc: '美しい螺旋。ソフトクリーム級。' },
+  { id: 'r_diet', rarity: 'r', type: 'char', name: 'ダイエットうんち', emoji: '🥗', desc: '野菜中心のヘルシー仕上げ。' },
+  { id: 'r_protein', rarity: 'r', type: 'char', name: 'プロテインうんち', emoji: '💪', desc: '筋トレの成果が腸にも表れている。' },
+  { id: 'r_onsen', rarity: 'r', type: 'char', name: '温泉うんち', emoji: '♨️', desc: '湯気が立ちのぼるできたてホヤホヤ。' },
+  // --- SR ---
+  { id: 'sr_gentle', rarity: 'sr', type: 'char', name: '紳士うんち', emoji: '🎩', desc: 'シルクハットをかぶった品格ある逸品。' },
+  { id: 'sr_idol', rarity: 'sr', type: 'char', name: 'アイドルうんち', emoji: '🎤', desc: '便器のステージで今日も輝く。' },
+  { id: 'sr_ninja', rarity: 'sr', type: 'char', name: '忍者うんち', emoji: '🥷', desc: '音もなく影もなくスルッと排出。' },
+  { id: 'sr_king', rarity: 'sr', type: 'char', name: '王様うんち', emoji: '🤴', desc: '玉座（便座）にふさわしい風格。' },
+  { id: 'sr_teller', rarity: 'sr', type: 'char', name: '占い師うんち', emoji: '🔮', desc: 'あなたの明日の便通を知っている。' },
+  // --- SSR ---
+  { id: 'ssr_skin_crystal', rarity: 'ssr', type: 'skin', skin: 'crystal', name: 'クリスタルうんち', emoji: '💎', desc: 'ガチャ限定スキン。排出で図鑑解放。' },
+  { id: 'ssr_knight', rarity: 'ssr', type: 'char', name: '騎士うんち', emoji: '⚔️', desc: '腸の平和を守り続ける忠実な騎士。' },
+  { id: 'ssr_angel', rarity: 'ssr', type: 'char', name: '天使うんち', emoji: '👼', desc: '天から降りた祝福の快便。' },
+  { id: 'ssr_demon', rarity: 'ssr', type: 'char', name: '魔王うんち', emoji: '😈', desc: '恐ろしき魔王。ただし形状は完璧。' },
+  // --- UR ---
+  { id: 'ur_skin_legend', rarity: 'ur', type: 'skin', skin: 'legend', name: '伝説の大便玉', emoji: '🔮', desc: 'ガチャ限定スキン。1/2,000の奇跡。' },
+  { id: 'ur_god', rarity: 'ur', type: 'char', name: '神のうんち', emoji: '🌠', desc: '神々が認めた究極のうんち。拝む価値あり。' },
+  { id: 'ur_alien', rarity: 'ur', type: 'char', name: '宇宙うんち', emoji: '👽', desc: '地球外生命体が残していった謎の物体。' },
 ];
 
 // 確率表記用
@@ -172,6 +192,9 @@ export const ACHIEVEMENT_DATA = [
   { id: 'gacha1k', name: 'ガチャ中毒', desc: 'ガチャを1,000回まわす', emoji: '🎲', stat: 'gachaPulls', req: 1000 },
   { id: 'gacha10k', name: 'ガチャの帝王', desc: 'ガチャを10,000回まわす', emoji: '👑', stat: 'gachaPulls', req: 10000 },
   { id: 'ur1', name: '神引き', desc: 'URを引き当てた…！', emoji: '🌈', stat: 'urCount', req: 1 },
+  { id: 'chars10', name: 'キャラコレクター', desc: 'ガチャキャラを10種集める', emoji: '🗂️', stat: 'charsOwned', req: 10 },
+  { id: 'chars20', name: 'うんち博士', desc: 'ガチャキャラを20種集める', emoji: '🎓', stat: 'charsOwned', req: 20 },
+  { id: 'charsall', name: '全員排出', desc: 'ガチャキャラを全種類集める', emoji: '🏅', stat: 'charsOwned', req: 24 },
   { id: 'skin6', name: '真・図鑑コンプリート', desc: 'ガチャ限定を含む全スキン解放', emoji: '👑', stat: 'skinsUnlocked', req: 6 },
 ];
 
